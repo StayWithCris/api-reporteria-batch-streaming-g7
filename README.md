@@ -1,27 +1,65 @@
-# Grupo 7: Módulo de Reportería, Batch y Streaming
+# UNIVERSIDAD TECNOLÓGICA METROPOLITANA
+## Facultad de Ingeniería - Departamento de Informática y Computación
+### Ramo: Arquitectura de Software
+### Profesor: Diego Hernández García
 
-Este servicio se encarga de consolidar, procesar y exponer las métricas operacionales del ecosistema Mini Marketplace Cloud utilizando estrategias mixtas de transferencia de información.
+---
 
-## Decisiones de Arquitectura e Infraestructura (E1)
-* **Ingesta en Tiempo Real (Streaming):** Captura de eventos críticos de negocio mediante colas asíncronas para actualizar el caché analítico de inmediato.
-* **Procesamiento por Lotes (Batch):** Tareas programadas nocturnas (vía GitHub Actions / Cron) que leen logs crudos persistidos en Object Storage, recalculan consistencias analíticas y guardan datos consolidados en la base SQL.
+# Proyecto Mini Marketplace Cloud - Grupo 7
+## Módulo: Reportería, Batch y Streaming 
 
-## Matriz de Dependencias (Punto 5 de la Rúbrica)
-Para operar con éxito, nuestro módulo requiere consumir información proveniente de los siguientes equipos del ecosistema:
+### Integrantes:
+* Cristóbal Alexis Faúndez Brito
+* [Agregar aquí Nombre de Integrante 2]
+* [Agregar aquí Nombre de Integrante 3]
 
-1. **Grupo 5 (Pedidos):** Consumimos el evento `OrderCreated` para graficar flujos de venta en tiempo real.
-2. **Grupo 6 (Pago simulado):** Consumimos `PaymentApproved` para actualizar los montos financieros reales recaudados.
-3. **Grupo 7 (Inventario):** Consumimos `InventoryShortage` para alertar en el Dashboard qué productos se están quedando sin stock.
-4. **Grupo 1 (Frontend / BFF):** Consume nuestra API REST expuesta en `/reports/sales-summary` para pintar los gráficos del administrador.
+---
 
-## Contrato de la API
-El contrato formal e interactivo se encuentra detallado en el archivo adjunto [openapi.yaml](./openapi.yaml).
+## 1. Definición del Servicio y Responsabilidad (E1)
+Nuestro servicio actúa como el componente analítico y de observabilidad centralizado de la solución Mini Marketplace Cloud. Diseñado bajo el principio arquitectónico de **separación de responsabilidades (Separation of Concerns - SoC)**, este módulo se limita exclusivamente a consolidar, procesar y exponer las métricas operacionales y financieras agregadas del negocio. El fin principal es proveer datos procesados listos para que el componente de interfaz Dashboard/BFF (Grupo 1) pueda renderizarlos al administrador del sistema.
 
-## Contrato de Eventos a Consumir (Punto 4 de la Rúbrica)
-Dado que operamos bajo un enfoque analítico mixto (Streaming + Batch), nuestro servicio es un consumidor puro de eventos del ecosistema. A continuación se formalizan los esquemas JSON estructurales que el sistema procesará a través de la cola asíncrona (Upstash Kafka / GCP PubSub):
+* **Fuera de Alcance:** Queda estrictamente fuera del dominio analítico la mutación transaccional del estado de las compras, la edición directa de stocks en inventario, y la gestión o procesamiento de flujos en pasarelas de pago. El servicio es un consumidor y consolidador puro de eventos, garantizando un bajo acoplamiento con las reglas de negocio transaccionales.
 
-### 1. Evento: `OrderCreated` (Origen: Grupo 5 - Pedidos)
-Este evento gatilla el procesamiento en tiempo real (Streaming) para actualizar los tableros analíticos de órdenes vigentes de inmediato.
+---
+
+## 2. Decisiones de Arquitectura e Ingesta Mixta
+Para dar cumplimiento a los requerimientos analíticos a gran escala sin degradar la latencia ni saturar operativamente la base de datos transaccional, se opta por un enfoque híbrido de procesamiento:
+
+* **Estrategia en Tiempo Real (Stream Processing):** Consumo continuo de eventos de alta prioridad (como aprobaciones de pago) desde el broker asíncrono, permitiendo la actualización inmediata de la telemetría operacional en caliente (estructuras de lectura rápida).
+* **Estrategia por Lotes (Batch Processing):** Ejecución de tareas programadas (cronjobs automáticos configurados mediante pipelines de GitHub Actions) de baja frecuencia. Estas leen los logs analíticos crudos persistidos en frío dentro del Object Storage, recalculan las agregaciones complejas y mitigan desfases, asegurando el estado de **consistencia eventual** del ecosistema distribuido.
+
+---
+
+## 3. Matriz de Dependencias e Integración (Punto 5 de la Rúbrica)
+De acuerdo a la topología orientada a eventos del ecosistema Marketplace, nuestro módulo presenta una dependencia técnica e integración directa con los siguientes grupos productores de datos (*Upstream*):
+
+1. **Grupo 5 (Pedidos / Order Management):** Dependemos del consumo de su evento `OrderCreated` para trazar la intención de compra e iniciar la métrica de volumen analítico de órdenes diarias.
+2. **Grupo 6 (Pago Simulado):** Dependemos del consumo de su evento `PaymentApproved` para computar los montos financieros reales recaudados por la plataforma analítica.
+3. **Grupo 7 (Inventario y Concurrencia):** Consumimos el evento `InventoryShortage` para alimentar las alertas reactivas de quiebre de stock en el panel analítico del administrador.
+4. **Grupo 1 (Frontend Marketplace / BFF):** Actúa como nuestro consumidor directo aguas abajo (*Downstream*), integrándose mediante llamadas REST sincrónicas a nuestra capa analítica expuesta para consultar el estado consolidado de los reportes.
+
+---
+
+## 4. Riesgos, Supuestos y Manejo de Errores (10% Rúbrica E1)
+* **Supuesto Clave:** Se asume que los microservicios transaccionales emisores (`G5` y `G6`) garantizan un payload con marcas de tiempo idempotentes y estructuradas, permitiendo mitigar colisiones o reprocesamientos fuera de orden cronológico en la cola asíncrona.
+* **Riesgo Técnico (Indisponibilidad o Pérdida de Mensajes):** Caída transitoria del broker de mensajería asíncrona debido a las cuotas restrictivas de los proveedores en capa *Cloud Free*, provocando pérdida de telemetría en tiempo real.
+* **Mecanismo de Mitigación:** Se implementará una política de reintentos con retraso exponencial (*Exponential Backoff*) en el consumidor de streaming. Adicionalmente, el diseño del proceso Batch nocturno actuará como failover, reconstruyendo de forma íntegra el estado analítico diario directamente desde los logs crudos respaldados en el Object Storage persistente, resolviendo cualquier pérdida de paquetes previa.
+
+---
+
+## 5. Contrato Formal de la API REST
+La especificación de nuestros endpoints REST se encuentra estructurada formalmente bajo el estándar OpenAPI 3.0 dentro del archivo de configuración raíz de este repositorio: [openapi.yaml](./openapi.yaml).
+
+El servicio expone de forma pública y síncrona el siguiente recurso principal para el BFF:
+* `GET /api/v1/reports/sales-summary`
+  * **Parámetros de entrada:** `period` (daily, weekly, monthly), `page` (paginación de registros históricos), `limit` (control de tamaño de payload).
+  * **Estrategia adoptada:** Implementa códigos de estado HTTP estandarizados y esquemas uniformes para el manejo de excepciones y validación de parámetros inválidos.
+
+---
+
+## 6. Contrato de Eventos Analíticos a Consumir (Punto 4 de la Rúbrica)
+
+### Evento: `OrderCreated` (Origen: Grupo 5)
 ```json
 {
   "$schema": "[http://json-schema.org/draft-07/schema#](http://json-schema.org/draft-07/schema#)",
@@ -45,46 +83,3 @@ Este evento gatilla el procesamiento en tiempo real (Streaming) para actualizar 
     }
   }
 }
-
-### 2. Evento: `PaymentApproved` (Origen: Grupo 6 - Pagos)
-Indica dinero real recaudado. Permite consolidar los reportes de ingresos financieros netos.
-```json
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "PaymentApprovedEvent",
-  "type": "object",
-  "required": ["event_id", "event_type", "version", "timestamp", "payload"],
-  "properties": {
-    "event_id": { "type": "string", "example": "evt_554433221" },
-    "event_type": { "type": "string", "enum": ["PaymentApproved"] },
-    "version": { "type": "string", "example": "1.0.0" },
-    "timestamp": { "type": "string", "format": "date-time", "example": "2026-06-13T06:05:00Z" },
-    "payload": {
-      "type": "object",
-      "required": ["payment_id", "order_id", "amount_paid", "payment_method"],
-      "properties": {
-        "payment_id": { "type": "string", "example": "pay_776655" },
-        "order_id": { "type": "string", "example": "ord_998877" },
-        "amount_paid": { "type": "number", "example": 45500.00 },
-        "payment_method": { "type": "string", "example": "CREDIT_CARD" }
-      }
-    }
-  }
-}
-
-## Modelo de Datos Inicial (Ownership del Dato)
-Para persistir la información consolidada por los flujos analíticos en la base de datos SQL relacional (Supabase Postgres / Neon), definimos las siguientes entidades estructuradas:
-
-### 1. Tabla: `fact_sales_summary` (Métricas de ventas agregadas por hora)
-* **id** (UUID, PK): Identificador único del registro analítico.
-* **period_date** (TIMESTAMP): Fecha y hora del bloque consolidado.
-* **total_sales_amount** (NUMERIC): Suma acumulada de montos financieros validados.
-* **total_orders_count** (INTEGER): Cantidad total de órdenes procesadas con éxito.
-* **aggregation_type** (VARCHAR): Origen del cálculo (`REAL_TIME` o `BATCH_RECALCULATED`).
-* **updated_at** (TIMESTAMP): Última actualización del registro.
-
-### 2. Tabla: `agg_top_products` (Ranking acumulado de productos)
-* **product_id** (VARCHAR, PK): ID del producto (Consultado del catálogo de G3).
-* **total_units_sold** (INTEGER): Cantidad física acumulada de unidades vendidas.
-* **total_revenue_generated** (NUMERIC): Dinero neto generado por este ítem.
-* **last_calculated_at** (TIMESTAMP): Marca de tiempo del último procesamiento.
