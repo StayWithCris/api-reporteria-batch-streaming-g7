@@ -80,8 +80,12 @@ El servicio expone de forma pública y síncrona el siguiente recurso principal 
         "total_amount": { "type": "number", "example": 45500.00 },
         "currency": { "type": "string", "example": "CLP" }
       }
+    }
+  }
+}
 ```
 ## Evento: PaymentApproved (Origen: Grupo 6)
+```json
 {
   "$schema": "[http://json-schema.org/draft-07/schema#](http://json-schema.org/draft-07/schema#)",
   "title": "PaymentApprovedEvent",
@@ -104,6 +108,7 @@ El servicio expone de forma pública y síncrona el siguiente recurso principal 
     }
   }
 }
+```
 
 ## 7. Modelo de Datos Inicial (Ownership del Dato)
 El esquema de datos inicial implementa un diseño relacional optimizado para analítica (tablas de hechos y dimensiones simplificadas). Este modelo persistirá de manera aislada en el motor relacional provisto por la capa gratuita (Supabase Postgres / Neon DB):
@@ -150,3 +155,4 @@ graph TD
         BFF[Grupo 1: Frontend / BFF] -->|Consulta reportes GET| API[Nuestra API REST: Render]
         API -->|Lee datos consolidados| DB
     end
+```
