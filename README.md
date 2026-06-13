@@ -134,20 +134,19 @@ last_calculated_at (TIMESTAMP): Registro temporal del último lote de procesamie
 
 ```mermaid
 graph TD
-    subgraph Ecosistema Marketplace Cloud
-        G5[Grupo 5: Pedidos] -- Publica 'OrderCreated' --> Broker(Upstash Kafka / PubSub)
-        G6[Grupo 6: Pagos] -- Publica 'PaymentApproved' --> Broker
+    subgraph ecosistema [Ecosistema Marketplace Cloud]
+        G5[Grupo 5: Pedidos] -->|Publica evento OrderCreated| Broker(Upstash Kafka / PubSub)
+        G6[Grupo 6: Pagos] -->|Publica evento PaymentApproved| Broker
     end
 
-    subgraph Módulo de Reportería - Grupo 7
-        Broker -- Consumo en tiempo real --> StreamApp[Stream Processor: CloudRun / Workers]
-        StreamApp -- Guarda métricas inmediatas --> DB[(Persistencia: Supabase Postgres)]
+    subgraph reporteria [Módulo de Reportería - Grupo 7]
+        Broker -->|Consumo en tiempo real| StreamApp[Stream Processor: CloudRun]
+        StreamApp -->|Guarda métricas inmediatas| DB[(Persistencia: Supabase Postgres)]
         
-        Broker -- Guarda logs crudos --> ObjectStorage[Object Storage: Cloudflare R2]
-        Cron[GitHub Actions: Tarea Batch Nocturna] -- Lee logs históricos --> ObjectStorage
-        Cron -- Concilia e inyecta consolidados --> DB
+        Broker -->|Guarda logs crudos| ObjectStorage[Object Storage: Cloudflare R2]
+        Cron[GitHub Actions: Tarea Batch] -->|Lee logs históricos| ObjectStorage
+        Cron -->|Concilia e inyecta| DB
         
-        BFF[Grupo 1: Frontend / BFF] -- Consulta reportes GET --> API[Nuestra API REST: Render]
-        API -- Lee de --> DB
+        BFF[Grupo 1: Frontend / BFF] -->|Consulta reportes GET| API[Nuestra API REST: Render]
+        API -->|Lee datos consolidados| DB
     end
-}
