@@ -10,7 +10,7 @@
 
 ### Integrantes:
 * Cristóbal Alexis Faúndez Brito
-* [Agregar aquí Nombre de Integrante 2]
+* Francisco Esteban Solís Maturana
 * [Agregar aquí Nombre de Integrante 3]
 
 ---
