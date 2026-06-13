@@ -6,7 +6,7 @@
 ---
 
 # Proyecto Mini Marketplace Cloud - Grupo 7
-## Módulo: Reportería, Batch y Streaming 📊
+## Módulo: Reportería, Batch y Streaming
 
 ### Integrantes:
 * Cristóbal Alexis Faúndez Brito
