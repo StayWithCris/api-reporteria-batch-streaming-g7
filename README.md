@@ -150,5 +150,4 @@ graph TD
         BFF[Grupo 1: Frontend / BFF] -- Consulta reportes GET --> API[Nuestra API REST: Render]
         API -- Lee de --> DB
     end
-  }
 }
