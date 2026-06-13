@@ -6,7 +6,7 @@
 ---
 
 # Proyecto Mini Marketplace Cloud - Grupo 7
-## Módulo: Reportería, Batch y Streaming 📊
+## Módulo: Reportería, Batch y Streaming
 
 ### Integrantes:
 * Cristóbal Alexis Faúndez Brito
@@ -83,3 +83,73 @@ El servicio expone de forma pública y síncrona el siguiente recurso principal 
     }
   }
 }
+```
+## Evento: PaymentApproved (Origen: Grupo 6)
+
+{
+  "$schema": "[http://json-schema.org/draft-07/schema#](http://json-schema.org/draft-07/schema#)",
+  "title": "PaymentApprovedEvent",
+  "type": "object",
+  "required": ["event_id", "event_type", "version", "timestamp", "payload"],
+  "properties": {
+    "event_id": { "type": "string", "example": "evt_554433221" },
+    "event_type": { "type": "string", "enum": ["PaymentApproved"] },
+    "version": { "type": "string", "example": "1.0.0" },
+    "timestamp": { "type": "string", "format": "date-time", "example": "2026-06-13T06:05:00Z" },
+    "payload": {
+      "type": "object",
+      "required": ["payment_id", "order_id", "amount_paid", "payment_method"],
+      "properties": {
+        "payment_id": { "type": "string", "example": "pay_776655" },
+        "order_id": { "type": "string", "example": "ord_998877" },
+        "amount_paid": { "type": "number", "example": 45500.00 },
+        "payment_method": { "type": "string", "example": "CREDIT_CARD" }
+      }
+    }
+  }
+}
+
+## 7. Modelo de Datos Inicial (Ownership del Dato)
+El esquema de datos inicial implementa un diseño relacional optimizado para analítica (tablas de hechos y dimensiones simplificadas). Este modelo persistirá de manera aislada en el motor relacional provisto por la capa gratuita (Supabase Postgres / Neon DB):
+
+Tabla: fact_sales_summary (Agregaciones operacionales y financieras)
+id (UUID, PK): Identificador unívoco autogenerado del registro consolidado.
+
+period_date (TIMESTAMP): Marca temporal que delimita el bloque de agregación analítica.
+
+total_sales_amount (NUMERIC): Sumatoria financiera de los pagos validados y conciliados dentro del rango.
+
+total_orders_count (INTEGER): Volumen de órdenes computadas exitosamente.
+
+aggregation_type (VARCHAR): Indica la estrategia de ingesta aplicada (REAL_TIME o BATCH_RECALCULATED).
+
+updated_at (TIMESTAMP): Timestamp de auditoría para trazar modificaciones de los pipelines.
+
+Tabla: agg_top_products (Ranking de demanda física)
+product_id (VARCHAR, PK): ID único del producto (datos administrados originalmente por el catálogo de G3).
+
+total_units_sold (INTEGER): Cantidad total acumulada de unidades vendidas.
+
+total_revenue_generated (NUMERIC): Ingresos brutos consolidados generados exclusivamente por este ítem.
+
+last_calculated_at (TIMESTAMP): Registro temporal del último lote de procesamiento aplicado.
+
+## 8. Diagrama de Arquitectura de Componentes (Mermaid C4)
+
+graph TD
+    subgraph Ecosistema Marketplace Cloud
+        G5[Grupo 5: Pedidos] -- Publica 'OrderCreated' --> Broker(Upstash Kafka / PubSub)
+        G6[Grupo 6: Pagos] -- Publica 'PaymentApproved' --> Broker
+    end
+
+    subgraph Módulo de Reportería - Grupo 7
+        Broker -- Consumo en tiempo real --> StreamApp[Stream Processor: CloudRun / Workers]
+        StreamApp -- Guarda métricas inmediatas --> DB[(Persistencia: Supabase Postgres)]
+        
+        Broker -- Guarda logs crudos --> ObjectStorage[Object Storage: Cloudflare R2]
+        Cron[GitHub Actions: Tarea Batch Nocturna] -- Lee logs históricos --> ObjectStorage
+        Cron -- Concilia e inyecta consolidados --> DB
+        
+        BFF[Grupo 1: Frontend / BFF] -- Consulta reportes GET --> API[Nuestra API REST: Render]
+        API -- Lee de --> DB
+    end
