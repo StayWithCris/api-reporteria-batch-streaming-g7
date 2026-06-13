@@ -131,7 +131,7 @@ total_revenue_generated (NUMERIC): Ingresos brutos consolidados generados exclus
 last_calculated_at (TIMESTAMP): Registro temporal del último lote de procesamiento aplicado.
 
 8. Diagrama de Arquitectura de Componentes (Mermaid C4)
-
+```mermaid
 graph TD
     subgraph Ecosistema Marketplace Cloud
         G5[Grupo 5: Pedidos] -- Publica 'OrderCreated' --> Broker(Upstash Kafka / PubSub)
@@ -150,5 +150,6 @@ graph TD
         API -- Lee de --> DB
     end
     }
+```
   }
 }
