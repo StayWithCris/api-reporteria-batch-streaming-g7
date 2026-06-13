@@ -1,0 +1,172 @@
+openapi: 3.0.3
+info:
+  title: API de Reportería, Batch y Streaming - Grupo 7
+  description: >
+    Servicio encargado de consolidar y exponer las métricas operacionales del 
+    ecosistema Mini Marketplace Cloud mediante procesamiento en lote (Batch) y 
+    en tiempo real (Streaming).
+  version: 1.0.0
+servers:
+  - url: https://api-reporteria-g7.render.com/api/v1
+    description: Servidor de producción simulado (Render / Cloud Run)
+paths:
+  /reports/sales-summary:
+    get:
+      summary: Obtener resumen consolidado de ventas
+      description: >
+        Retorna las métricas financieras agregadas en base a la ingesta de eventos 
+        en tiempo real (Streaming) cruzada con conciliaciones nocturnas (Batch).
+      parameters:
+        - name: period
+          in: query
+          description: Filtro temporal para la agregación de datos.
+          required: true
+          schema:
+            type: string
+            enum: [daily, weekly, monthly]
+            default: daily
+        - name: page
+          in: query
+          description: Número de página para resultados históricos.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Cantidad de registros por página.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: Resumen financiero calculado exitosamente.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  metadata:
+                    type: object
+                    properties:
+                      total_records:
+                        type: integer
+                        example: 120
+                      page:
+                        type: integer
+                        example: 1
+                      limit:
+                        type: integer
+                        example: 10
+                  data:
+                    type: object
+                    properties:
+                      total_sales_amount:
+                        type: number
+                        format: float
+                        example: 15450000.50
+                      currency:
+                        type: string
+                        example: CLP
+                      total_orders_processed:
+                        type: integer
+                        example: 342
+                      processing_type_applied:
+                        type: string
+                        enum: [REAL_TIME, BATCH_RECALCULATED]
+                        example: REAL_TIME
+                      calculated_at:
+                        type: string
+                        format: date-time
+                        example: '2026-06-13T05:00:00Z'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '500':
+          $ref: '#/components/responses/500InternalError'
+
+  /reports/top-products:
+    get:
+      summary: Obtener el ranking de los productos más vendidos
+      description: >
+        Expone los productos con mayor volumen de salida e ingresos. Permite al BFF 
+        renderizar el componente crítico del Dashboard de administración.
+      parameters:
+        - name: limit
+          in: query
+          description: Cantidad de productos a retornar en el top.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 5
+      responses:
+        '200':
+          description: Ranking generado correctamente.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  calculated_at:
+                    type: string
+                    format: date-time
+                    example: '2026-06-13T05:15:00Z'
+                  products:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        ranking_position:
+                          type: integer
+                          example: 1
+                        product_id:
+                          type: string
+                          example: 'prod_771'
+                        total_units_sold:
+                          type: integer
+                          example: 1420
+                        total_revenue:
+                          type: number
+                          format: float
+                          example: 31950000
+        '500':
+          $ref: '#/components/responses/500InternalError'
+
+components:
+  responses:
+    400BadRequest:
+      description: Parámetros inválidos o malformados en la consulta.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    500InternalError:
+      description: Error interno del servidor al procesar o consolidar los datos.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required:
+        - error_code
+        - message
+        - timestamp
+      properties:
+        error_code:
+          type: string
+          example: 'INVALID_QUERY_PARAMETER'
+        message:
+          type: string
+          example: "El parámetro 'period' provisto no es válido. Valores aceptados: daily, weekly, monthly."
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-06-13T05:16:22Z'
