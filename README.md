@@ -11,7 +11,7 @@
 ### Integrantes:
 * Cristóbal Alexis Faúndez Brito
 * Francisco Esteban Solís Maturana
-* [Agregar aquí Nombre de Integrante 3]
+* Bastián Andrés Encina Correa
 
 ---
 
