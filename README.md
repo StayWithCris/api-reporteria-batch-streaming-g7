@@ -5,13 +5,13 @@
 
 ---
 
-# Proyecto Mini Marketplace Cloud - Grupo 7
+# Proyecto Mini Marketplace Cloud - Grupo 8
 ## Módulo: Reportería, Batch y Streaming
 
 ### Integrantes:
 * Cristóbal Alexis Faúndez Brito
 * Francisco Esteban Solís Maturana
-* [Agregar aquí Nombre de Integrante 3]
+* Bastián Andrés Encina Correa
 
 ---
 
