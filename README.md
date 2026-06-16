@@ -5,7 +5,7 @@
 
 ---
 
-# Proyecto Mini Marketplace Cloud - Grupo 8
+# Proyecto Mini Marketplace Cloud - Grupo 7
 ## Módulo: Reportería, Batch y Streaming
 
 ### Integrantes:
