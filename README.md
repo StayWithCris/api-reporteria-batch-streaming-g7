@@ -40,7 +40,7 @@ De acuerdo a la topología orientada a eventos del ecosistema Marketplace, nuest
 
 ---
 
-## 4. Riesgos, Supuestos y Manejo de Errores (10% Rúbrica E1)
+## 4. Riesgos, Supuestos y Manejo de Errores 
 * **Supuesto Clave:** Se asume que los microservicios transaccionales emisores (`G5` y `G6`) garantizan un payload con marcas de tiempo idempotentes y estructuradas, permitiendo mitigar colisiones o reprocesamientos fuera de orden cronológico en la cola asíncrona.
 * **Riesgo Técnico (Indisponibilidad o Pérdida de Mensajes):** Caída transitoria del broker de mensajería asíncrona debido a las cuotas restrictivas de los proveedores en capa *Cloud Free*, provocando pérdida de telemetría en tiempo real.
 * **Mecanismo de Mitigación:** Se implementará una política de reintentos con retraso exponencial (*Exponential Backoff*) en el consumidor de streaming. Adicionalmente, el diseño del proceso Batch nocturno actuará como failover, reconstruyendo de forma íntegra el estado analítico diario directamente desde los logs crudos respaldados en el Object Storage persistente, resolviendo cualquier pérdida de paquetes previa.
@@ -57,7 +57,7 @@ El servicio expone de forma pública y síncrona el siguiente recurso principal 
 
 ---
 
-## 6. Contrato de Eventos Analíticos a Consumir (Punto 4 de la Rúbrica)
+## 6. Contrato de Eventos Analíticos a Consumir 
 
 ### Evento: `OrderCreated` (Origen: Grupo 5)
 ```json
@@ -138,21 +138,23 @@ last_calculated_at (TIMESTAMP): Registro temporal del último lote de procesamie
 ## 8. Diagrama de Arquitectura de Componentes (Mermaid C4)
 
 ```mermaid
-graph TD
-    subgraph ecosistema [Ecosistema Marketplace Cloud]
-        G5[Grupo 5: Pedidos] -->|Publica evento OrderCreated| Broker(Upstash Kafka / PubSub)
-        G6[Grupo 6: Pagos] -->|Publica evento PaymentApproved| Broker
-    end
-
-    subgraph reporteria [Módulo de Reportería - Grupo 7]
-        Broker -->|Consumo en tiempo real| StreamApp[Stream Processor: CloudRun]
-        StreamApp -->|Guarda métricas inmediatas| DB[(Persistencia: Supabase Postgres)]
+graph TD    
+    subgraph ecosistema [Ecosistema Marketplace Cloud]        
+        G5[Grupo 5: Pedidos] -->|Publica evento OrderCreated| Broker(Pub/Sub)        
+        G8[Grupo 8: Pagos] -->|Publica evento PaymentApproved| Broker        
+        Inv[Inventario] -->|Publica evento InventoryShortage| Broker
+        G6[Grupo 6: Despacho] -->|Publica evento ShipmentDelivered| Broker    
+    end    
+    
+    subgraph reporteria [Módulo de Reportería - Grupo 7]        
+        Broker -->|Consumo en tiempo real| StreamApp[Stream Processor: Python/Docker en Render]        
+        StreamApp -->|Guarda métricas inmediatas| DB[(Persistencia: Supabase Postgres)]                
         
-        Broker -->|Guarda logs crudos| ObjectStorage[Object Storage: Cloudflare R2]
-        Cron[GitHub Actions: Tarea Batch] -->|Lee logs históricos| ObjectStorage
-        Cron -->|Concilia e inyecta| DB
+        Broker -->|Guarda logs crudos| ObjectStorage[Object Storage: Supabase Storage]        
+        Cron[GitHub Actions: Tarea Batch] -->|Lee logs históricos| ObjectStorage        
+        Cron -->|Concilia e inyecta| DB                
         
-        BFF[Grupo 1: Frontend / BFF] -->|Consulta reportes GET| API[Nuestra API REST: Render]
-        API -->|Lee datos consolidados| DB
+        BFF[Grupo 1: Frontend / BFF] -->|Consulta reportes GET| API[Nuestra API REST: Python/Docker en Render]        
+        API -->|Lee datos consolidados| DB    
     end
 ```
